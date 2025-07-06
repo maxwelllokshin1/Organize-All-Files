@@ -3,11 +3,12 @@ import shutil
 from pathlib import Path
 
 from_ = os.path.expanduser("~/Downloads")
-to = os.path.expanduser("~/Downloads")
+to = os.path.expanduser("~/Desktop")
 
 # start with this
 start_library = {
     "Important" : {"maxwell", "lokshin", "resume", "cover", "letter"},
+    "Design Documents" : {"design", "document"},
     "Python Projects": {".py"},
     "React Projects": {".tsx", ".js", ".css", ".html"},
     "C Projects": {".c", ".cs", ".cpp"},
@@ -17,7 +18,9 @@ start_library = {
 # end with this
 end_library = {
     "Code": {"Python Projects", "React Projects", "C Projects", "Java Projects"},
-    "Documents": {".pdf", ".docx", "Important"},
+    "Documents": {".pdf", ".docx", "Important", "Design Documents"},
+    "Images": {".png", ".jpg", ".jpeg", ".gif", ".tiff", ".webp"},
+    "Applications": {".exe"},
     "Extras": set()
 }
 
@@ -28,7 +31,7 @@ def type_of_file(folder, source, file, library):
     path_parts = {part.lower() for part in path.parts}
     print(path_parts)
     for category, attributes in library.items():
-        print(f"{category}: {attributes}")# Check parts of file
+
         for part in path_parts:
             if any(keyword.lower() in part for keyword in attributes):
                 print(file)
@@ -43,11 +46,10 @@ def type_of_file(folder, source, file, library):
 
 
 def categorize(source, library):
-    print(library)
-    title_list = []
+    title_list = list(library.keys())
+
     # create the original folder directories
     for category in library.keys():
-        title_list.append(os.path.join(source, category))
         try:
             os.makedirs(os.path.join(source, category), exist_ok=True)
             print(f"Folder {os.path.join(source, category)} made successfully")
@@ -57,19 +59,16 @@ def categorize(source, library):
     # look at each file
     for folder, sub_folder, files in os.walk(source):
 
-        # normalize paths for reliable comparison
-        normalized_folder = os.path.normpath(folder).lower()
-        # skip folders that are subfolders of the initial category folders
-        if not any(normalized_folder == os.path.normpath(title).lower() or
-                   normalized_folder.startswith(os.path.normpath(title).lower() + os.sep)
-                   for title in title_list):
+        path = Path(folder).resolve()
+        path_parts = {part.lower() for part in path.parts}
+        if not any(keyword.lower() in path_parts for keyword in title_list):
             if files:
                 for file in files:
                     fullpath = os.path.join(folder, file)
 
                     # find out if it's in any specific category
                     category, isFolder = type_of_file(folder, source, fullpath, library) # finds name of file
-
+                    print(isFolder)
                     # is it a folder
                     if isFolder:
                         source_path = Path(source).resolve()
@@ -95,13 +94,19 @@ def categorize(source, library):
                         except ValueError:
                             print(f"{folder_path} is not inside {source_path}")
                         break
-                    elif category:
-                        # not folder
-                        print(f"{fullpath} \t=> \t{os.path.join(source, category, file)}")
-                        shutil.move(fullpath, os.path.join(source, category, file))
+                    if "Extras" in library.keys() and not category:
+                        category = "Extras"
+                    if category:
+                        print(source, category, file)
+                        final_destination = os.path.join(source, category, file)
+                        print(f"Moved {fullpath} \t=> \t{final_destination}")
+                        # Move the folder
+                        shutil.move(fullpath, final_destination)
             elif not os.listdir(folder):
                 # remove any empty folders
                 os.rmdir(os.path.join(source, folder))
+            else:
+                print(f"SKIPPING {folder}")
 
 def transfer(source, output, library):
     for category in library.keys():
@@ -118,17 +123,24 @@ def undo(source, library):
         for folder, sub_folders, files in os.walk(category_path):
             print(folder)
             if sub_folders:
+                print(sub_folders)
                 path_to_path(category_path, source, sub_folders)
             if files:
+                print(files)
                 path_to_path(category_path, source, files)
 
     for folder, sub_folders, files in os.walk(source):
         if not os.listdir(folder):
             # remove any empty folders
+            print("REMOVING: ", os.path.join(folder))
             os.rmdir(os.path.join(folder))
 
-def path_to_path(category_path, source, library):
-    for file in library:
+def path_to_path(category_path, source, folder):
+    # if not os.listdir(folder):
+    #     # remove any empty folders
+    #     os.rmdir(os.path.join(folder))
+    #     return
+    for file in folder:
         original_path = os.path.join(category_path, file)
         final_path = os.path.join(source, file)
         print(f"Moved {original_path} => {final_path}")
